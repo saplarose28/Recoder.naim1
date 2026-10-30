@@ -1,0 +1,40 @@
+name: M3U8 Test Recorder
+
+on:
+  workflow_dispatch:
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg curl python3
+
+      - name: Record stream
+        env:
+          M3U8_URL: ${{ secrets.M3U8_URL }}
+        run: |
+          test -n "$M3U8_URL"
+          ffmpeg -y \
+            -i "$M3U8_URL" \
+            -t 00:10:00 \
+            -c copy \
+            recording.mp4
+
+      - name: Upload to GoFile
+        run: |
+          curl --fail-with-body \
+            -F "file=@recording.mp4" \
+            https://upload.gofile.io/uploadfile \
+            -o upload.json
+
+          python3 -c '
+          import json
+          d = json.load(open("upload.json"))
+          print("Status:", d.get("status"))
+          print("Download:", d.get("data", {}).get("downloadPage", "Not returned"))
+          '
